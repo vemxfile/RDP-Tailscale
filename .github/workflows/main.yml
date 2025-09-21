@@ -1,0 +1,35 @@
+name: RDP-Tailscale-6H
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Install Tailscale
+      shell: powershell
+      run: |
+        msiexec /i https://pkgs.tailscale.com/stable/tailscale-setup-1.62.1-amd64.msi /qn
+        tailscale up --authkey $Env:TS_KEY --hostname github-rdp --accept-routes
+
+    - name: Create user + enable RDP
+      shell: powershell
+      env:
+        RDP_PASS: ${{ secrets.RDP_PASS }}
+      run: |
+        if (-not (Get-LocalUser -Name "runneradmin" -ErrorAction SilentlyContinue)) {
+          net user runneradmin $Env:RDP_PASS /add
+          net localgroup administrators runneradmin /add
+        } else {
+          Write-Host "runneradmin already exists, skipping creation."
+        }
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
+          -Name 'fDenyTSConnections' -Value 0
+        Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'
+
+    - name: Show Tailscale IPv4
+      shell: powershell
+      run: tailscale ip -4
+
+    - name: Keep alive
+      shell: powershell
+      run: Start-Sleep -Seconds 21600
