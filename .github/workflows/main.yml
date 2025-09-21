@@ -6,10 +6,18 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: Install Tailscale
-      shell: powershell
-      run: |
-        msiexec /i https://pkgs.tailscale.com/stable/tailscale-setup-1.62.1-amd64.msi /qn
-        tailscale up --authkey $Env:TS_KEY --hostname github-rdp --accept-routes
+  shell: powershell
+  env:
+    TS_KEY: ${{ secrets.TS_KEY }}
+  run: |
+    # Download installer Tailscale
+    Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi -OutFile tailscale.msi
+    
+    # Install Tailscale dan tunggu sampai selesai
+    Start-Process msiexec.exe -Wait -ArgumentList '/i tailscale.msi /qn'
+    
+    # Jalankan tailscale.exe dari path absolut (bukan PATH)
+    & 'C:\Program Files (x86)\Tailscale IPN\tailscale.exe' up --authkey $Env:TS_KEY --hostname github-rdp --accept-routes
 
     - name: Create user + enable RDP
       shell: powershell
